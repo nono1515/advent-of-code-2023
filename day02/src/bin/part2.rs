@@ -2,8 +2,6 @@ use regex::Regex;
 use std::fs;
 
 fn main() {
-
-    // let id_re = Regex::new(r"Game (?<id>\d+)").unwrap();
     let cubes_re = Regex::new(r"(\d+) (red|green|blue)").unwrap();
 
     let input = fs::read_to_string("input.txt").expect("couldn't read file");
@@ -28,7 +26,7 @@ fn main() {
                     };
                     let (_, [count, type_]) = cubes_cap.extract();
                     let count: i32 = count.parse().unwrap();
-                    // println!("{} {}", count, type_);
+                    
                     match type_ {
                         "red" => {
                             if count > min_red {
