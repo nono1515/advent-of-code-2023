@@ -17,7 +17,7 @@ fn main() {
 4322674655533";
 
     // let input = include_str!("../../input.txt");
-    let map: Map = input
+    let map: Map<usize> = input
         .lines()
         .map(|l| {
             l.chars()
@@ -28,11 +28,38 @@ fn main() {
 
     // println!("{}", map);
 
-    let start = (0, 0);
-    let end = (map.width - 1, map.height - 1);
+    let start = Point { x: 0, y: 0 };
+    let end = Point {
+        x: map.width - 1,
+        y: map.height - 1,
+    };
 
-    // let path = djikstra(start, end, &map);
-    // println!("{:?}", path);
+    let (dist, from) = djikstra(&start, &map);
+
+    println!("{}", dist);
+    println!("{}", from);
+    // println!("{}", path.get(&end));
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Dir {
+    Up,
+    Down,
+    Left,
+    Right,
+    None,
+}
+
+impl fmt::Display for Dir {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Dir::Up => write!(f, "^"),
+            Dir::Down => write!(f, "v"),
+            Dir::Left => write!(f, "<"),
+            Dir::Right => write!(f, ">"),
+            Dir::None => write!(f, " "),
+        }
+    }
 }
 
 struct Point {
@@ -40,52 +67,112 @@ struct Point {
     y: usize,
 }
 
-struct Map {
-    map: Vec<Vec<usize>>,
+struct Map<T> {
+    map: Vec<Vec<T>>,
     width: usize,
     height: usize,
 }
 
-impl Map {
-    fn get(&self, p: Point) -> usize {
-        self.map[p.y][p.x]
+impl<T> Map<T> {
+    fn empty_like<NewT: Clone>(&self, val: NewT) -> Map<NewT> {
+        Map {
+            map: vec![vec![val; self.width]; self.height],
+            width: self.width,
+            height: self.height,
+        }
+    }
+
+    fn get(&self, p: &Point) -> &T {
+        &self.map[p.y][p.x]
+    }
+
+    fn set(&mut self, p: &Point, v: T) {
+        self.map[p.y][p.x] = v
     }
 }
 
-impl fmt::Display for Map {
+impl<T: fmt::Display> fmt::Display for Map<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for row in &self.map {
-            writeln!(f, "{:?}", row)?;
+            for e in row {
+                write!(f, "{:>2} ", e)?;
+            }
+            writeln!(f, "")?;
         }
         Ok(())
     }
 }
 
-impl FromIterator<Vec<usize>> for Map {
-    fn from_iter<T: IntoIterator<Item = Vec<usize>>>(iter: T) -> Self {
-        let map: Vec<Vec<usize>> = iter.into_iter().collect();
+impl<T> FromIterator<Vec<T>> for Map<T> {
+    fn from_iter<TIter: IntoIterator<Item = Vec<T>>>(iter: TIter) -> Self {
+        let map: Vec<Vec<T>> = iter.into_iter().collect();
         let width = map[0].len();
         let height = map.len();
         Map { map, width, height }
     }
 }
 
-fn djikstra(start: Point, end: Point, costs: Map) -> Map {
-    let dist = Map {
-        map: vec![vec![usize::MAX; costs.width]; costs.height],
-        width: costs.width,
-        height: costs.height,
-    };
-    
+fn djikstra(start: &Point, costs: &Map<usize>) -> (Map<usize>, Map<Dir>) {
+    let mut dist = costs.empty_like(usize::MAX);
+    dist.set(start, 0);
+    let mut from = costs.empty_like(Dir::None);
 
-    dist
+    for y in 0..costs.height {
+        for x in 0..costs.width {
+            let d = dist.get(&Point { x, y }).clone();
+            if x < costs.width - 1 {
+                let cost_right = d + costs.get(&Point { x: x + 1, y });
+                if cost_right < *dist.get(&Point { x: x + 1, y }) {
+                    dist.set(&Point { x: x + 1, y }, cost_right);
+                    from.set(&Point { x: x + 1, y }, Dir::Left);
+                }
+            }
+            if x > 0 {
+                let cost_left = d + costs.get(&Point { x: x - 1, y });
+                if cost_left < *dist.get(&Point { x: x - 1, y }) {
+                    dist.set(&Point { x: x - 1, y }, cost_left);
+                    from.set(&Point { x: x - 1, y }, Dir::Right);
+                }
+            }
+            if y < costs.height - 1 {
+                let cost_down = d + costs.get(&Point { x, y: y + 1 });
+                if cost_down < *dist.get(&Point { x, y: y + 1 }) {
+                    dist.set(&Point { x, y: y + 1 }, cost_down);
+                    from.set(&Point { x, y: y + 1 }, Dir::Up);
+                }
+            }
+            if y > 0 {
+                let cost_up = d + costs.get(&Point { x, y: y - 1 });
+                if cost_up < *dist.get(&Point { x, y: y - 1 }) {
+                    dist.set(&Point { x, y: y - 1 }, cost_up);
+                    from.set(&Point { x, y: y - 1 }, Dir::Down);
+                }
+            }
+        }
+    }
+
+    (dist, from)
 }
 
-// fn a_star(start: ) {
-//     let mut nodes = vec![vec![u32::MAX; map[0].len()]; map.len()];
-//     let mut visited = vec![vec![false; map[0].len()]; map.len()];
-//     nodes[0][0] = 0;
-//     visited[0][0] = true;
+fn a_star(start: &Point, end: &Point, costs: &Map<usize>) -> (Map<usize>, Map<Dir>) {
+    let mut dist = costs.empty_like(usize::MAX);
+    dist.set(start, 0);
+    let mut from = costs.empty_like(Dir::None);
 
-//     let current = (0, 0);
-// }
+    // let mut visited = vec![];
+    let mut queue = vec![];
+    queue.push((heuristic(&0, start, end), start));
+
+    loop {
+        queue.sort();
+        queue.reverse();
+        let (c, p) = queue.pop().unwrap();
+        
+    }
+
+    (dist, from)
+}
+
+fn heuristic(cost: &usize, p: &Point, end: &Point) -> usize {
+    *cost + (p.x as i32 - end.x as i32).abs() as usize + (p.y as i32 - end.y as i32).abs() as usize
+}
