@@ -11,8 +11,8 @@ fn main() {
         })
         .collect();
 
-    const DMIN: usize = 1;
-    const DMAX: usize = 3;
+    const DMIN: usize = 4;
+    const DMAX: usize = 10;
 
     let mut visited = vec![vec![vec![false; 4]; map.width]; map.height];
     let mut queue = std::collections::BinaryHeap::new();
@@ -32,6 +32,8 @@ fn main() {
             dir: Dir::Right,
         },
     ));
+
+    let mut c = 0;
 
     let cost = loop {
         if let Some((Reverse(cost), node)) = queue.pop() {
