@@ -1,28 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::RangeInclusive};
 
 fn main() {
-    let input = "\
-px{a<2006:qkq,m>2090:A,rfg}
-pv{a>1716:R,A}
-lnx{m>1548:A,A}
-rfg{s<537:gd,x>2440:R,A}
-qs{s>3448:A,lnx}
-qkq{x<1416:A,crn}
-crn{x>2662:A,R}
-in{s<1351:px,qqz}
-qqz{s>2770:qs,m<1801:hdj,R}
-gd{a>3333:R,R}
-hdj{m>838:A,pv}
+    let input = include_str!("../../input.txt");
 
-{x=787,m=2655,a=1222,s=2876}
-{x=1679,m=44,a=2067,s=496}
-{x=2036,m=264,a=79,s=2244}
-{x=2461,m=1339,a=466,s=291}
-{x=2127,m=1623,a=2188,s=1013}";
-
-    // let input = include_str!("../../input.txt");
-
-    let (workflows_str, pieces_str) = input.split_once("\n\n").unwrap();
+    let (workflows_str, _) = input.split_once("\n\n").unwrap();
     let mut workflows = HashMap::new();
     for workflow in workflows_str.lines() {
         let (name, rules) = workflow.split_once("{").unwrap();
@@ -32,34 +13,21 @@ hdj{m>838:A,pv}
         }
     }
 
-    // println!("workflows: {:?}", workflows);
-
     let mut sum = 0;
+    let mut todo: Vec<(&str, usize, [RangeInclusive<u32>; 4])> =
+        vec![("in", 0, [1..=4000, 1..=4000, 1..=4000, 1..=4000])];
 
-    for x in 1..=4000 {
-        println!("x: {}", x);
-        for m in 1..=4000 {
-            for a in 1..=4000 {
-                for s in 1..=4000 {
-                    let mut curr_rules = &workflows["in"];
-                    let mut curr_index = 0;
-                    loop {
-                        let rule = &curr_rules[curr_index];
-                        if let Some(target) = rule.apply(&x, &m, &a, &s) {
-                            if target == "A" {
-                                sum += 1;
-                                break;
-                            } else if target == "R" {
-                                break;
-                            }
-                            // println!("{}", target);
-                            curr_rules = &workflows[target];
-                            curr_index = 0;
-                        } else {
-                            curr_index += 1;
-                        }
-                    }
-                }
+    while !todo.is_empty() {
+        let (rule_name, rule_index, ranges) = todo.pop().unwrap();
+        let rule = &workflows[rule_name][rule_index];
+
+        for res in rule.apply(ranges, rule_name, rule_index) {
+            if res.0 == "A" {
+                sum += res.2.into_iter().fold(1, |acc, r| acc * r.count());
+            } else if res.0 == "R" {
+                ()
+            } else {
+                todo.push((res.0, res.1, res.2));
             }
         }
     }
@@ -100,31 +68,78 @@ impl Rule {
         }
     }
 
-    fn apply(&self, x: &u32, m: &u32, a: &u32, s: &u32) -> Option<&str> {
-        let n = match self.input {
-            Some('x') => x,
-            Some('m') => m,
-            Some('a') => a,
-            Some('s') => s,
-            None => return Some(self.target.as_str()),
-            _ => panic!(),
-        };
-        match self.cond {
-            Some('>') => {
-                if *n > self.threshold.unwrap() {
-                    Some(&self.target)
-                } else {
-                    None
-                }
+    fn apply<'a>(
+        &'a self,
+        [x, m, a, s]: [RangeInclusive<u32>; 4],
+        rule_name: &'a str,
+        rule_index: usize,
+    ) -> Vec<(&str, usize, [RangeInclusive<u32>; 4])> {
+        if let Some(mut n) = self.threshold {
+            if self.cond == Some('>') {
+                n = n + 1;
             }
-            Some('<') => {
-                if *n < self.threshold.unwrap() {
-                    Some(&self.target)
-                } else {
-                    None
+            // let mut new_ranges;
+            let new_range = match self.input {
+                Some('x') => {
+                    if x.contains(&self.threshold.unwrap()) {
+                        (
+                            [*x.start() as u32..=n - 1, m.clone(), a.clone(), s.clone()],
+                            [n..=*x.end() as u32, m, a, s],
+                        )
+                    } else {
+                        return vec![(self.target.as_str(), 0, [x, m, a, s])];
+                    }
                 }
+                Some('m') => {
+                    if m.contains(&self.threshold.unwrap()) {
+                        (
+                            [x.clone(), *m.start() as u32..=n - 1, a.clone(), s.clone()],
+                            [x, n..=*m.end() as u32, a, s],
+                        )
+                    } else {
+                        return vec![(self.target.as_str(), 0, [x, m, a, s])];
+                    }
+                }
+                Some('a') => {
+                    if a.contains(&self.threshold.unwrap()) {
+                        (
+                            [x.clone(), m.clone(), *a.start() as u32..=n - 1, s.clone()],
+                            [x, m, n..=*a.end() as u32, s],
+                        )
+                    } else {
+                        return vec![(self.target.as_str(), 0, [x, m, a, s])];
+                    }
+                }
+                Some('s') => {
+                    if s.contains(&self.threshold.unwrap()) {
+                        (
+                            [x.clone(), m.clone(), a.clone(), *s.start() as u32..=n - 1],
+                            [x, m, a, n..=*s.end() as u32],
+                        )
+                    } else {
+                        return vec![(self.target.as_str(), 0, [x, m, a, s])];
+                    }
+                }
+                _ => panic!(),
+            };
+
+            match self.cond {
+                Some('>') => {
+                    vec![
+                        (rule_name, rule_index + 1, new_range.0),
+                        (self.target.as_str(), 0, new_range.1),
+                    ]
+                }
+                Some('<') => {
+                    vec![
+                        (self.target.as_str(), 0, new_range.0),
+                        (rule_name, rule_index + 1, new_range.1),
+                    ]
+                }
+                _ => panic!(),
             }
-            _ => panic!(),
+        } else {
+            vec![(self.target.as_str(), 0, [x, m, a, s])]
         }
     }
 }
