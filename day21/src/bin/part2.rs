@@ -26,6 +26,21 @@ fn main() {
         })
         .collect();
 
+
+    // This problem can be solved much easier due to its geometric property
+    // If you go and have a look at the input, you can see that the starting point
+    // is on a fully "unblocked" row and column, which means that any neighboring map
+    // is accesible in (grid.len() / 2) steps, and the next one in grid.len() steps.
+    // Also, the final number of steps is right at the end of one map:
+    // 26501365 = 65 + 131 * 202300
+    // So what we can do is to compute the possible destinations for the case where
+    // we are able to go to 
+    // - Only the curent map
+    // - the first neightboring map
+    // - the 2nd one
+    // And the extrapole quadratically
+
+    // First we compute the solution for 65, 65 + 131 and 65 + 2 * 131 steps
     let mut ys = vec![];
     for n in 0..3 {
         let mut big_grid = vec![vec![false; grid[0].len() * (2 * n + 1)]; grid.len() * (2 * n + 1)];
@@ -38,18 +53,6 @@ fn main() {
                 }
             }
         }
-
-        println!(
-            "{} {} {}",
-            n,
-            grid.iter()
-                .map(|line| line.iter().filter(|&b| *b).count())
-                .sum::<usize>(),
-            big_grid
-                .iter()
-                .map(|line| line.iter().filter(|&b| *b).count())
-                .sum::<usize>()
-        );
 
         let big_start = (start[0].0 + n * grid.len(), start[0].1 + n * grid[0].len());
         let nodes = djikstra(big_grid, big_start);
@@ -64,9 +67,11 @@ fn main() {
     }
 
     let x_interp = ((STEPS - 65) / 131) as i64;
-    println!("{}", x_interp);
-    println!("{:?}", ys);
+    // println!("{}", x_interp);
+    // println!("{:?}", ys);
 
+    // Now we can interpolate using Lagrange Interpolation
+    // https://en.wikipedia.org/wiki/Polynomial_interpolation#Lagrange_Interpolation
     let xs = vec![0, 1, 2];
     let n = ys
         .iter()
@@ -85,10 +90,10 @@ fn main() {
                 * *y as i64
         })
         .sum::<i64>();
+    // The next one is the same, in the particular case of 2nd degree interpolation
     // let n = (x_interp - 1) * (x_interp - 2) / (0 - 1) / (0 - 2) * ys[0] as i64
     //     + (x_interp - 0) * (x_interp - 2) / (1 - 0) / (1 - 2) * ys[1] as i64
     //     + (x_interp - 0) * (x_interp - 1) / (2 - 1) / (2 - 0) * ys[2] as i64;
 
     println!("{}", n);
 }
-
