@@ -1,5 +1,3 @@
-use std::usize;
-
 fn falls(pieces: &mut Vec<Piece>, skip: Option<usize>) -> usize {
     let mut floor: Vec<Vec<usize>> =
         vec![
@@ -29,14 +27,14 @@ fn falls(pieces: &mut Vec<Piece>, skip: Option<usize>) -> usize {
 }
 
 fn main() {
-    let input: &str = "\
-1,0,1~1,2,1
-0,0,2~2,0,2
-0,2,3~2,2,3
-0,0,4~0,2,4
-2,0,5~2,2,5
-0,1,6~2,1,6
-1,1,8~1,1,9";
+    //     let input: &str = "\
+    // 1,0,1~1,2,1
+    // 0,0,2~2,0,2
+    // 0,2,3~2,2,3
+    // 0,0,4~0,2,4
+    // 2,0,5~2,2,5
+    // 0,1,6~2,1,6
+    // 1,1,8~1,1,9";
 
     let input = include_str!("../../input.txt");
 
@@ -48,17 +46,17 @@ fn main() {
 
     falls(&mut pieces, None);
 
+    // part 1
     let not_falling = (0..pieces.len())
         .map(|i| falls(&mut pieces.clone(), Some(i)))
         .filter(|&x| x == 0)
         .count();
+    println!("{}", not_falling);
 
+    // part 2
     let n_falls = (0..pieces.len())
         .map(|i| falls(&mut pieces.clone(), Some(i)))
         .sum::<usize>();
-    // .collect::<Vec<_>>();
-
-    println!("{}", not_falling);
     println!("{:?}", n_falls);
 }
 
