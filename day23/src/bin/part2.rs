@@ -195,27 +195,6 @@ fn build_graph(map: &Vec<Vec<TileType>>, starting_pos: (usize, usize)) -> (Vec<N
     (nodes, edges)
 }
 
-fn process_neighbors(
-    neighbor: &(usize, usize),
-    to_visit: &Vec<Vec<bool>>,
-    nodes: &mut Vec<Node>,
-    edges: &mut Vec<Edge>,
-    stack: &mut Vec<((usize, usize), usize, usize)>,
-    id: usize,
-    steps: usize,
-) {
-    if to_visit[neighbor.0][neighbor.1] {
-        stack.push((*neighbor, id, steps));
-    }
-    if let Some(node) = nodes.iter().find(|node| node.pos == *neighbor) {
-        edges.push(Edge {
-            from: id,
-            to: node.id,
-            steps,
-        });
-    }
-}
-
 #[derive(PartialEq, Debug)]
 enum TileType {
     Path,
