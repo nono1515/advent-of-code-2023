@@ -3,7 +3,23 @@ use std::{time::Instant, usize};
 #[derive(PartialEq)]
 enum Tile {
     Wall,
-    Empty,
+    Empty {
+        up: usize,
+        down: usize,
+        left: usize,
+        right: usize,
+    },
+}
+
+impl Tile {
+    fn new_empty() -> Self {
+        Tile::Empty {
+            up: usize::MAX,
+            down: usize::MAX,
+            left: usize::MAX,
+            right: usize::MAX,
+        }
+    }
 }
 
 #[derive(PartialEq)]
@@ -49,13 +65,13 @@ fn parse_input(input: &str) -> (Pos, Pos, Vec<Vec<Tile>>) {
                     '#' => Tile::Wall,
                     'S' => {
                         start_pos = Pos { x, y };
-                        Tile::Empty
+                        Tile::new_empty()
                     }
                     'E' => {
                         end_pos = Pos { x, y };
-                        Tile::Empty
+                        Tile::new_empty()
                     }
-                    _ => Tile::Empty,
+                    _ => Tile::new_empty(),
                 })
                 .collect::<Vec<_>>()
         })
@@ -65,16 +81,12 @@ fn parse_input(input: &str) -> (Pos, Pos, Vec<Vec<Tile>>) {
 }
 
 fn part1(input: &str) -> usize {
-    let (s, e, map) = parse_input(input);
+    let (s, e, mut map) = parse_input(input);
 
+    let mut queue = vec![(s, 0, Direction::Right)];
     let mut min_cost = usize::MAX;
-    let mut queue = vec![(s, 0, Direction::Right, vec![])];
 
-    while let Some((pos, cost, prev_dir, path)) = queue.pop() {
-        if cost > min_cost {
-            continue;
-        }
-
+    while let Some((pos, cost, prev_dir)) = queue.pop() {
         if pos == e {
             min_cost = min_cost.min(cost);
             continue;
@@ -89,17 +101,33 @@ fn part1(input: &str) -> usize {
             let mut new_pos = pos.clone();
             new_pos.move_dir(&dir);
 
-            if path.contains(&new_pos) {
-                continue;
-            }
-
-            if map[new_pos.y][new_pos.x] == Tile::Empty {
-                let mut new_path = path.clone();
-                new_path.push(pos.clone());
-                if dir != prev_dir {
-                    queue.push((new_pos, cost + 1001, dir, new_path));
+            let new_cost = {
+                if prev_dir == dir {
+                    cost + 1
                 } else {
-                    queue.push((new_pos, cost + 1, dir, new_path));
+                    cost + 1001
+                }
+            };
+
+            if let Tile::Empty {
+                up,
+                down,
+                left,
+                right,
+            } = &mut map[new_pos.y][new_pos.x]
+            {
+                if dir == Direction::Up && *up > new_cost {
+                    *up = new_cost;
+                    queue.push((new_pos, new_cost, dir));
+                } else if dir == Direction::Down && *down > new_cost {
+                    *down = new_cost;
+                    queue.push((new_pos, new_cost, dir));
+                } else if dir == Direction::Left && *left > new_cost {
+                    *left = new_cost;
+                    queue.push((new_pos, new_cost, dir));
+                } else if dir == Direction::Right && *right > new_cost {
+                    *right = new_cost;
+                    queue.push((new_pos, new_cost, dir));
                 }
             }
         }
