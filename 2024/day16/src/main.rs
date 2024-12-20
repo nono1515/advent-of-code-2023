@@ -1,4 +1,4 @@
-use std::{time::Instant, usize};
+use std::{time::Instant, usize, vec};
 
 #[derive(PartialEq)]
 enum Tile {
@@ -22,12 +22,12 @@ impl Tile {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
+    Up = 0,
+    Down = 1,
+    Left = 2,
+    Right = 3,
 }
 
 #[derive(Clone, PartialEq)]
@@ -47,6 +47,15 @@ impl Pos {
             Direction::Down => self.y += 1,
             Direction::Left => self.x -= 1,
             Direction::Right => self.x += 1,
+        }
+    }
+
+    fn move_back(&mut self, dir: &Direction) {
+        match dir {
+            Direction::Up => self.y += 1,
+            Direction::Down => self.y -= 1,
+            Direction::Left => self.x += 1,
+            Direction::Right => self.x -= 1,
         }
     }
 }
@@ -139,7 +148,7 @@ fn part1(input: &str) -> usize {
 fn part2(input: &str) -> usize {
     let (s, e, mut map) = parse_input(input);
 
-    let mut queue = vec![(s, 0, Direction::Right)];
+    let mut queue = vec![(s.clone(), 0, Direction::Right)];
     let mut min_cost = usize::MAX;
 
     while let Some((pos, cost, prev_dir)) = queue.pop() {
@@ -189,10 +198,13 @@ fn part2(input: &str) -> usize {
         }
     }
 
-    let mut total = 1;
-    let mut queue = vec![e];
+    let mut queue = vec![(e, None)];
+    let mut visited = vec![vec![[false; 4]; map[0].len()]; map.len()];
+    visited[s.y][s.x] = [true; 4];
 
-    while let Some(pos) = queue.pop() {
+    while let Some((pos, next_dir)) = queue.pop() {
+        // visited.push((pos.clone(), next_dir.clone()));
+        visited[pos.y][pos.x][next_dir.clone().unwrap_or(Direction::Up) as usize] = true;
         if let Tile::Empty {
             up,
             down,
@@ -200,25 +212,58 @@ fn part2(input: &str) -> usize {
             right,
         } = map[pos.y][pos.x]
         {
-            let min_dir = [(
+            [
                 (Direction::Up, up),
                 (Direction::Down, down),
                 (Direction::Left, left),
                 (Direction::Right, right),
-            )]
+            ]
             .iter()
-            .fold((Vec::new(), 0), |(mut dirs, mut min_cost), (dir, c)| {
+            .fold((Vec::new(), 0), |(mut dirs, min_cost), (dir, c)| {
+                // println!("{}", c);
+                let c = if let Some(next_dir) = &next_dir {
+                    if *dir != *next_dir {
+                        c.saturating_add(1000)
+                    } else {
+                        *c
+                    }
+                } else {
+                    *c
+                };
                 if dirs.is_empty() || c < min_cost {
                     dirs.clear();
-                    dirs.push(dir);
-                    min_cost = c;
+                    dirs.push(dir.clone());
+                    (dirs, c)
                 } else if min_cost == c {
-                    dirs.push(dir);
+                    dirs.push(dir.clone());
+                    (dirs, c)
+                } else {
+                    (dirs, min_cost)
+                }
+            })
+            .0
+            .iter()
+            .for_each(|dir| {
+                let mut new_pos = pos.clone();
+                new_pos.move_back(&dir);
+                if !visited[new_pos.y][new_pos.x][dir.clone() as usize] {
+                    queue.push((new_pos, Some(dir.clone())));
                 }
             });
         }
     }
-    min_cost
+    // for line in visited.iter() {
+    //     for b in line.iter() {
+    //         print!("{}", b.iter().any(|b| *b).then(|| "O").unwrap_or("."));
+    //     }
+    //     println!();
+    // }
+
+    visited
+        .iter()
+        .flatten()
+        .filter(|b: &&[bool; 4]| b.iter().any(|b| *b))
+        .count()
 }
 
 fn main() {
@@ -252,7 +297,7 @@ fn test_large() {
 
     assert_eq!(part1(&input), 7036);
 
-    // assert_eq!(part2(&input), );
+    assert_eq!(part2(&input), 45);
 }
 
 #[test]
@@ -277,27 +322,6 @@ fn test_small() {
 #################";
 
     assert_eq!(part1(&input), 11048);
-
-    assert_eq!(part2(&input), 45);
-
-    let input = "\
-#################
-#...#...#...#..E#
-#.#.#.#.#.#.#.#.#
-#.#.#.#...#...#.#
-#.#.#.#.###.#.#.#
-#...#.#.#.....#.#
-#.#.#.#.#.#####.#
-#.#...#.#.#.....#
-#.#.#####.#.###.#
-#.#.#.......#...#
-#.#.###.#####.###
-#.#.#...#.....#.#
-#.#.#.#####.###.#
-#.#.#.........#.#
-#.#.#.#########.#
-#S#.............#
-#################";
 
     assert_eq!(part2(&input), 64);
 }
