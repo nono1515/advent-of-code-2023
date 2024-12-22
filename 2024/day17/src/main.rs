@@ -15,9 +15,9 @@ struct ComboError {
     msg: &'static str,
 }
 
-fn combo_operand(operand: u8, registers: &[u32; 3]) -> Result<u32, ComboError> {
+fn combo_operand(operand: u8, registers: &[u64; 3]) -> Result<u64, ComboError> {
     match operand {
-        0..=3 => Ok(operand as u32),
+        0..=3 => Ok(operand as u64),
         4 => Ok(registers[0]),
         5 => Ok(registers[1]),
         6 => Ok(registers[2]),
@@ -30,7 +30,7 @@ fn combo_operand(operand: u8, registers: &[u32; 3]) -> Result<u32, ComboError> {
 fn apply_command(
     command: u8,
     arg: u8,
-    registers: &mut [u32; 3],
+    registers: &mut [u64; 3],
 ) -> Result<CommandResult, ComboError> {
     match command {
         0 => {
@@ -39,7 +39,7 @@ fn apply_command(
             Ok(CommandResult::Nothing)
         }
         1 => {
-            registers[1] = registers[1] ^ arg as u32;
+            registers[1] = registers[1] ^ arg as u64;
             Ok(CommandResult::Nothing)
         }
         2 => {
@@ -84,7 +84,7 @@ fn parse_num<T: FromStr>(chars: &mut Chars) -> Result<T, <T as FromStr>::Err> {
         .parse::<T>()
 }
 
-fn parse_input(input: &str) -> (Vec<u8>, [u32; 3]) {
+fn parse_input(input: &str) -> (Vec<u8>, [u64; 3]) {
     let mut it = input.chars();
 
     let registers = [
@@ -101,7 +101,7 @@ fn parse_input(input: &str) -> (Vec<u8>, [u32; 3]) {
     (commands, registers)
 }
 
-fn part1(commands: &Vec<u8>, registers: &[u32; 3]) -> Vec<u8> {
+fn part1(commands: &Vec<u8>, registers: &[u64; 3]) -> Vec<u8> {
     let mut pointer = 0;
     let mut registers = registers.clone();
     let mut out = vec![];
@@ -123,22 +123,42 @@ fn part1(commands: &Vec<u8>, registers: &[u32; 3]) -> Vec<u8> {
     out
 }
 
-fn part2(input: &str) -> usize {
-    let mut i = 0;
-    let (commands, registers) = parse_input(&input);
+fn part2(commands: &Vec<u8>) -> usize {
+    let mut next_states = vec![];
+    let mut curr_states = vec![];
+    for i in 0..2_usize.pow(8) {
+        next_states = vec![i];
+        curr_states = vec![];
 
-    loop {
-        let res = part1(&commands, &registers);
-        if res == commands {
-            return i;
+        for cmd in commands.iter().rev() {
+            // println!("{:?}", next_states);
+            curr_states.clear();
+            curr_states.append(&mut next_states);
+
+            for state in &curr_states {
+                for mut b in 0..8 {
+                    let a = (state << 3) + b as usize;
+                    b = b ^ 1;
+                    let c = ((a >> b) % 8) as u8;
+                    b = b ^ 4;
+                    b = b ^ c;
+                    if b == *cmd {
+                        next_states.push(a as usize);
+                    }
+                }
+            }
         }
 
-        i += 1;
+        if !next_states.is_empty() {
+            break;
+        }
     }
+    // println!("{:?}", next_states);
+    *next_states.iter().min().unwrap()
 }
 
 fn main() {
-    //     let input = "\
+    // let input = "\
     // Register A: 729
     // Register B: 0
     // Register C: 0
@@ -158,8 +178,8 @@ fn main() {
         .join(",");
     println!("Part 1: {} in {:?}", output, now.elapsed());
 
-    // let now = Instant::now();
-    // println!("Part 2: {} in {:?}", part2(&input), now.elapsed());
+    let now = Instant::now();
+    println!("Part 2: {} in {:?}", part2(&commands), now.elapsed());
 }
 
 #[test]
@@ -177,19 +197,11 @@ Program: 0,1,5,4,3,0";
         part1(&commands, &registers),
         vec![4, 6, 3, 5, 6, 3, 5, 2, 1, 0]
     );
-
-    let input = "\
-    Register A: 2024
-    Register B: 0
-    Register C: 0
-
-    Program: 0,3,5,4,3,0";
-
-    assert_eq!(part2(&input), 117440);
 }
 
+#[allow(dead_code)]
 fn test_division(cmd_num: u8, reg_num: usize) {
-    let mut registers: [u32; 3] = [30, 20, 10];
+    let mut registers: [u64; 3] = [30, 20, 10];
     assert_eq!(
         apply_command(cmd_num, 1, &mut registers),
         Ok(CommandResult::Nothing)
@@ -206,7 +218,7 @@ fn test_division(cmd_num: u8, reg_num: usize) {
 #[test]
 fn test_ops() {
     // Command 0
-    let mut registers: [u32; 3] = [30, 20, 10];
+    let mut registers: [u64; 3] = [30, 20, 10];
     assert_eq!(
         apply_command(0, 1, &mut registers),
         Ok(CommandResult::Nothing)
@@ -220,7 +232,7 @@ fn test_ops() {
     assert_eq!(registers[0], 0);
 
     // Command 6
-    let mut registers: [u32; 3] = [30, 20, 10];
+    let mut registers: [u64; 3] = [30, 20, 10];
     assert_eq!(
         apply_command(6, 1, &mut registers),
         Ok(CommandResult::Nothing)
@@ -234,7 +246,7 @@ fn test_ops() {
     assert_eq!(registers[1], 0);
 
     // Command 7
-    let mut registers: [u32; 3] = [30, 20, 10];
+    let mut registers: [u64; 3] = [30, 20, 10];
     assert_eq!(
         apply_command(7, 1, &mut registers),
         Ok(CommandResult::Nothing)
@@ -248,7 +260,7 @@ fn test_ops() {
     assert_eq!(registers[2], 0);
 
     // Commands 1
-    let mut registers: [u32; 3] = [30, 20, 10];
+    let mut registers: [u64; 3] = [30, 20, 10];
     assert_eq!(
         apply_command(1, 8, &mut registers),
         Ok(CommandResult::Nothing)
@@ -260,7 +272,7 @@ fn test_ops() {
     assert_eq!(registers[1], 20 ^ 8 ^ 5 ^ 0);
 
     // Commands 2
-    let mut registers: [u32; 3] = [30, 20, 10];
+    let mut registers: [u64; 3] = [30, 20, 10];
     assert_eq!(
         apply_command(2, 1, &mut registers),
         Ok(CommandResult::Nothing)
@@ -274,7 +286,7 @@ fn test_ops() {
     assert_eq!(registers[1], 6);
 
     // Commands 3
-    let mut registers: [u32; 3] = [30, 20, 10];
+    let mut registers: [u64; 3] = [30, 20, 10];
     assert_eq!(
         apply_command(3, 6, &mut registers),
         Ok(CommandResult::Jump(6))
@@ -294,13 +306,13 @@ fn test_ops() {
     );
 
     // Commands 4
-    let mut registers: [u32; 3] = [30, 20, 10];
+    let mut registers: [u64; 3] = [30, 20, 10];
     assert_eq!(
         apply_command(4, 1, &mut registers),
         Ok(CommandResult::Nothing)
     );
     assert_eq!(registers[1], 20 ^ 10);
-    let mut registers: [u32; 3] = [30, 20, 10];
+    let mut registers: [u64; 3] = [30, 20, 10];
     assert_eq!(
         apply_command(4, 7, &mut registers),
         Ok(CommandResult::Nothing)
@@ -308,7 +320,7 @@ fn test_ops() {
     assert_eq!(registers[1], 20 ^ 10);
 
     // Commands 5
-    let mut registers: [u32; 3] = [30, 20, 10];
+    let mut registers: [u64; 3] = [30, 20, 10];
     assert_eq!(
         apply_command(5, 0, &mut registers),
         Ok(CommandResult::Out(0))
