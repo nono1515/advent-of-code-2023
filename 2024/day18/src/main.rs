@@ -1,5 +1,6 @@
 use std::{collections::VecDeque, time::Instant};
 
+#[derive(Debug)]
 struct NoPathError;
 
 fn parse_input(input: &str) -> Vec<(usize, usize)> {
@@ -83,18 +84,21 @@ fn part1(input: &str, grid_size: usize, steps: usize) -> usize {
 
 fn part2(input: &str, grid_size: usize, steps: usize) -> (usize, usize) {
     let pos = parse_input(input);
-    let mut grid = make_grid(&pos, grid_size, steps);
 
-    for pos_idx in steps..pos.len() {
-        let (y, x) = pos[pos_idx];
-        grid[y][x] = false;
+    let mut low = steps;
+    let mut high = pos.len();
 
-        if bfs(&grid).is_err() {
-            return pos[pos_idx];
+    while high - low > 1 {
+        let mid = low + (high - low) / 2;
+        // We need to add 1 because the parameters `steps` is not inclusive
+        let grid = make_grid(&pos, grid_size, mid + 1);
+        match bfs(&grid) {
+            Ok(_) => low = mid,
+            Err(_) => high = mid,
         }
     }
 
-    unreachable!()
+    pos[high]
 }
 
 // This function is too slow too work on the full input although it works on the example
