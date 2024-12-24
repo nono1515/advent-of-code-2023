@@ -103,18 +103,41 @@ fn part1(input: &str, min_gain: usize) -> usize {
 
 fn part2(input: &str, min_gain: usize, max_cheat: usize) -> usize {
     let (maze, start, end) = build_maze(input);
-    // print_maze(&maze);
     let path = bfs(&maze, start, end);
-    // println!("{:?}", path);
+
+    // Sort points by cost to enable early breaking
+    let mut sorted_points: Vec<_> = path.iter().collect();
+    sorted_points.sort_by_key(|(_, &cost)| cost);
+
+    // Pre-calculate y-strips for each x coordinate
+    let mut strips: HashMap<i32, Vec<((i32, i32), usize)>> = HashMap::new();
+    for (&(x, y), &cost) in &path {
+        strips.entry(x).or_default().push(((x, y), cost));
+    }
+
+    // Sort strips by y coordinate
+    for strip in strips.values_mut() {
+        strip.sort_by_key(|((_, y), _)| *y);
+    }
 
     let mut total = 0;
+    for &(&(x, y), cost) in &sorted_points {
+        for x_offset in -(max_cheat as i32)..=max_cheat as i32 {
+            let x2 = x + x_offset;
+            if let Some(strip) = strips.get(&x2) {
+                let y_range = max_cheat as i32 - x_offset.abs();
 
-    for ((x, y), c) in &path {
-        total += path
-            .iter()
-            .map(|((x_, y_), &c_)| (((x_ - x).abs() + (y_ - y).abs()) as usize, c_))
-            .filter(|(dist, c_)| *dist <= max_cheat && *c_ + min_gain + dist <= *c)
-            .count();
+                // Binary search for y range bounds
+                let start_idx = strip.partition_point(|((_, y2), _)| *y2 < y - y_range);
+                let end_idx = strip.partition_point(|((_, y2), _)| *y2 <= y + y_range);
+
+                for &((_, y2), c2) in &strip[start_idx..end_idx] {
+                    if c2 + min_gain + ((x - x2).abs() + (y - y2).abs()) as usize <= *cost {
+                        total += 1;
+                    }
+                }
+            }
+        }
     }
 
     total
