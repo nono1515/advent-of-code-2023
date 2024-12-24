@@ -27,6 +27,7 @@ fn build_maze(input: &str) -> (Vec<Vec<bool>>, (usize, usize), (usize, usize)) {
     )
 }
 
+#[allow(dead_code)]
 fn print_maze(maze: &Vec<Vec<bool>>) {
     for row in maze {
         println!(
