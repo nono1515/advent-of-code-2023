@@ -140,21 +140,91 @@ impl Move {
     }
 }
 
-fn keypad_cost(dx: i32, dy: i32, n: usize) -> usize {
-    if n == 0 {
-        return (dx.abs() + dy.abs()) as usize;
-    }
+fn keypad_cost(pos: &mut (i32, i32), dx: i32, dy: i32) -> usize {
+
+    let min_cost = usize::MAX;
 
     match (dx, dy) {
-        (0, 0) => 0,
-        (0, 1..=i32::MAX) => keypad_cost(-1, 1, n - 1),
-        (0, i32::MIN..0) => keypad_cost(1, 1, n - 1),
-        (1..=i32::MAX, 0) => keypad_cost(1, -1, n - 1),
-        (i32::MIN..0, 0) => keypad_cost(1, -1, n - 1),
-        _ => panic!("Invalid input"),
+        (0, 0) => return 0,
     }
-}
 
+    let horizontal_move = match dx {
+        0 => None,
+        1.. => Some(Move {
+            directions: keypad_possibilities(, 0),
+            n_press: dx as usize,
+        }),
+        i32::MIN..0 => Some(Move {
+            dy: 1 - pos.0,
+            dx: -pos.1,
+            n_press: -dx as usize,
+        }),
+    };
+
+    let horizontal_move = match dx {
+        0 => None,
+        1.. => Some(Move {
+            directions: keypad_possibilities(, 0),
+            n_press: dx as usize,
+        }),
+        i32::MIN..0 => Some(Move {
+            dy: 1 - pos.0,
+            dx: -pos.1,
+            n_press: -dx as usize,
+        }),
+    };
+
+    let vertical_move = match dy {
+        0 => None,
+        1.. => Some(Move {
+            dy: 1 - pos.0,
+            dx: 1 - pos.1,
+            n_press: dy as usize,
+        }),
+        i32::MIN..0 => Some(Move {
+            dy: -pos.0,
+            dx: 1 - pos.1,
+            n_press: -dy as usize,
+        }),
+    };
+
+    let (first_move, second_move) = {
+        if horizontal_move.is_some() && vertical_move.is_some() {
+            if horizontal_move.unwrap().abs() <= vertical_move.unwrap().abs() {
+                (
+                    horizontal_move,
+                    Some(Move {
+                        dx: vertical_move.unwrap().dx - horizontal_move.unwrap().dx,
+                        dy: vertical_move.unwrap().dy - horizontal_move.unwrap().dy,
+                        n_press: vertical_move.unwrap().n_press,
+                    }),
+                )
+            } else {
+                (
+                    vertical_move,
+                    Some(Move {
+                        dx: horizontal_move.unwrap().dx - vertical_move.unwrap().dx,
+                        dy: horizontal_move.unwrap().dy - vertical_move.unwrap().dy,
+                        n_press: horizontal_move.unwrap().n_press,
+                    }),
+                )
+            }
+        } else {
+            (horizontal_move, vertical_move)
+        }
+    };
+
+    if first_move.is_some() {
+        pos.0 += first_move.unwrap().dy;
+        pos.1 += first_move.unwrap().dx;
+    }
+    if second_move.is_some() {
+        pos.0 += second_move.unwrap().dy;
+        pos.1 += second_move.unwrap().dx;
+    }
+
+    vec![first_move, second_move]
+}
 fn part1(input: &str) -> usize {
     let mut total = 0;
     for line in input.lines() {
