@@ -1,4 +1,4 @@
-use std::{i32, ops::Add, time::Instant};
+use std::{i32, time::Instant};
 
 /// robot3
 // +---+---+---+
@@ -36,7 +36,6 @@ const DIR_KEYPAD: [[char; 3]; 2] = [
     [' ', '^', 'A'], //
     ['<', 'v', '>'], //
 ];
-
 const NUM_KEYPAD: [[char; 3]; 4] = [
     ['7', '8', '9'],
     ['4', '5', '6'],
@@ -60,14 +59,6 @@ impl Direction {
             Direction::Left => (-1, 0),
             Direction::Right => (1, 0),
         }
-    }
-}
-
-impl Add<Direction> for (i32, i32) {
-    type Output = (i32, i32);
-
-    fn add(self, rhs: Direction) -> Self::Output {
-        (self.0 + rhs.to_i32().0, self.1 + rhs.to_i32().1)
     }
 }
 
@@ -137,63 +128,63 @@ fn keypad_possibilities(dx: i32, dy: i32) -> Vec<Vec<Direction>> {
     generate_unique_permutations(&all_dirs)
 }
 
-fn keypad_cost(start: (i32, i32), end: (i32, i32), n: i32) -> i32 {
+#[derive(Debug, Clone)]
+struct Move {
+    directions: Vec<Direction>,
+    n_press: usize,
+}
+
+impl Move {
+    fn abs(&self) -> usize {
+        self.directions.len()
+    }
+}
+
+fn keypad_cost(dx: i32, dy: i32, n: usize) -> usize {
     if n == 0 {
-        return (end.0 - start.0).abs() + (end.1 - start.1).abs() + 1;
+        return (dx.abs() + dy.abs()) as usize;
     }
 
-    let moves_to = keypad_possibilities(end.0 - start.0, end.1 - start.1);
-    let move_back = keypad_possibilities(start.0 - end.0, start.1 - end.1);
-    // full moves consist of any of move_to append with any of move_back
-    let full_moves = moves_to
-        .iter()
-        .flat_map(|m1| {
-            move_back
-                .iter()
-                .map(move |m2| [m1.clone(), m2.clone()].concat())
-        })
-        .collect::<Vec<_>>();
-
-    full_moves
-        .iter()
-        .map(|m| {
-            m.iter()
-                .fold((0, start), |(cost, pos), d| {
-                    (cost + keypad_cost(pos, pos + *d, n - 1), pos + *d)
-                })
-                .0
-        })
-        .min()
-        .unwrap()
+    match (dx, dy) {
+        (0, 0) => 0,
+        (0, 1..=i32::MAX) => keypad_cost(-1, 1, n - 1),
+        (0, i32::MIN..0) => keypad_cost(1, 1, n - 1),
+        (1..=i32::MAX, 0) => keypad_cost(1, -1, n - 1),
+        (i32::MIN..0, 0) => keypad_cost(1, -1, n - 1),
+        _ => panic!("Invalid input"),
+    }
 }
 
 fn part1(input: &str) -> usize {
     let mut total = 0;
     for line in input.lines() {
         // get the integer representation of the 3 first chats
-        let n = 3;
-        let num = line
+        let n = line
             .chars()
             .take(3)
             .collect::<String>()
             .parse::<usize>()
             .unwrap();
-        let mut robot = (2, 3);
+        let mut robot1 = (0, 2);
+        let mut robot2 = (0, 2);
+        let mut robot3 = (3, 2);
         let mut seq_len = 0;
         for c in line.chars() {
             let y = NUM_KEYPAD.iter().position(|row| row.contains(&c)).unwrap() as i32;
             let x = NUM_KEYPAD[y as usize].iter().position(|&v| v == c).unwrap() as i32;
 
-            println!("ROBOT 3 going from {:?} to {:?}", robot, (x, y));
-            seq_len += keypad_cost(robot, (x, y), n);
+            let dy = y - robot3.0;
+            let dx = x - robot3.1;
 
-            println!("Seq len: {}", seq_len);
+            println!("ROBOT 3 dx: {} dy: {}", dx, dy);
 
-            robot = (x, y);
+            let robots2_moves = keypad_movement(dx, dy);
+            println!("Robot 2 possible moves: {:?}", robots2_moves);
+
+            for robot2_move in robots2_moves {}
         }
         println!("Seq len: {}", seq_len);
-        total += seq_len as usize * num;
-        break;
+        total += seq_len * n;
     }
     total
 }

@@ -1,0 +1,19 @@
+0
+<A
+v<<A>>^A
+<vA<AA>>^AvAA<^A>A -> 18
+
+2
+^A
+<A>A
+<v<A>>^AvA^A -> 12
+
+9
+>^^A
+vA<^AA>A
+<vA>^A<v<A>^A>AAvA^A -> 20
+
+A
+vvvA
+<vAAA>^A
+<v<A>A>^AAAvA<^A>A -> 18
