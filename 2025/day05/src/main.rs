@@ -65,3 +65,30 @@ fn test_both_parts() {
     assert_eq!(part2(&ranges), 14);
 }
 
+#[test]
+fn test_part2_edge_cases() {
+    // Test 1: Ranges that share a boundary (5 appears in both)
+    let ranges = vec![3..=5, 5..=7];
+    // Should merge to 3-7: 5 IDs total
+    assert_eq!(part2(&ranges), 5);
+
+    // Test 2: Adjacent ranges (no overlap, no gap)
+    let ranges = vec![3..=5, 6..=8];
+    // Should merge to 3-8: 6 IDs total
+    assert_eq!(part2(&ranges), 6);
+
+    // Test 3: Ranges with a gap
+    let ranges = vec![3..=5, 7..=9];
+    // Should NOT merge: 3+3 = 6 IDs total
+    assert_eq!(part2(&ranges), 6);
+
+    // Test 4: Multiple overlapping ranges
+    let ranges = vec![1..=5, 3..=7, 6..=10];
+    // Should merge to 1-10: 10 IDs total
+    assert_eq!(part2(&ranges), 10);
+
+    // Test 5: Completely contained range
+    let ranges = vec![1..=10, 3..=5];
+    // Should merge to 1-10: 10 IDs total
+    assert_eq!(part2(&ranges), 10);
+}
