@@ -1,65 +1,69 @@
+struct UnionFind {
+    parent: Vec<usize>,
+    size: Vec<usize>,
+}
+
+impl UnionFind {
+    fn new(n: usize) -> Self {
+        Self {
+            parent: (0..n).collect(),
+            size: vec![1; n],
+        }
+    }
+
+    fn find(&mut self, mut x: usize) -> usize {
+        while self.parent[x] != x {
+            self.parent[x] = self.parent[self.parent[x]];
+            x = self.parent[x];
+        }
+        x
+    }
+
+    fn union(&mut self, x: usize, y: usize) -> bool {
+        let (root_x, root_y) = (self.find(x), self.find(y));
+        if root_x == root_y {
+            return false;
+        }
+        self.parent[root_y] = root_x;
+        self.size[root_x] += self.size[root_y];
+        true
+    }
+
+    fn group_sizes(&mut self) -> Vec<usize> {
+        (0..self.parent.len())
+            .filter(|&i| self.parent[i] == i)
+            .map(|i| self.size[i])
+            .collect()
+    }
+}
+
 fn part1(input: &str, n: usize) -> u64 {
     let pos = get_pos(input);
     let id_dist = compute_distances(&pos);
 
-    let mut grouped_ids: Vec<Vec<usize>> = Vec::new();
+    let mut uf = UnionFind::new(pos.len());
     for (_, id1, id2) in id_dist.iter().take(n) {
-        let i1 = grouped_ids.iter().position(|v| v.contains(&id1));
-        let i2 = grouped_ids.iter().position(|v| v.contains(&id2));
-
-        match (i1, i2) {
-            (None, None) => grouped_ids.push(vec![*id1, *id2]),
-            (Some(i1), None) => grouped_ids[i1].push(*id2),
-            (None, Some(i2)) => grouped_ids[i2].push(*id1),
-            (Some(i1), Some(i2)) => {
-                if i1 == i2 {
-                    continue; // already connected, nothing to do
-                }
-                let (left, right) = grouped_ids.split_at_mut(i1.max(i2));
-                left[i1.min(i2)].append(&mut right[0]);
-            }
-        }
+        uf.union(*id1, *id2);
     }
-    let mut lengths = grouped_ids
-        .iter()
-        .map(|v| v.len() as u64)
-        .filter(|l| *l > 0)
-        .collect::<Vec<_>>();
-    lengths.sort();
-    lengths.iter().rev().take(3).product()
+
+    let mut sizes = uf.group_sizes();
+    sizes.sort();
+    sizes.iter().rev().take(3).map(|x| *x as u64).product()
 }
 
 fn part2(input: &str) -> u64 {
     let pos = get_pos(input);
     let id_dist = compute_distances(&pos);
 
-    let mut grouped_ids: Vec<Vec<usize>> = Vec::new();
-
-    for (_, id1, id2) in &id_dist {
-        let i1 = grouped_ids.iter().position(|v| v.contains(&id1));
-        let i2 = grouped_ids.iter().position(|v| v.contains(&id2));
-
-        match (i1, i2) {
-            (None, None) => grouped_ids.push(vec![*id1, *id2]),
-            (Some(i1), None) => grouped_ids[i1].push(*id2),
-            (None, Some(i2)) => grouped_ids[i2].push(*id1),
-            (Some(i1), Some(i2)) => {
-                if i1 == i2 {
-                    continue; // already connected, nothing to do
-                }
-                let (left, right) = grouped_ids.split_at_mut(i1.max(i2));
-                left[i1.min(i2)].append(&mut right[0]);
-            }
-        }
-
-        let populated = grouped_ids
-            .iter()
-            .filter(|v| v.len() > 0)
-            .collect::<Vec<_>>();
-        if populated.len() == 1 && populated[0].len() == pos.len() {
+    let mut uf = UnionFind::new(pos.len());
+    for (_, id1, id2) in id_dist.iter() {
+        uf.union(*id1, *id2);
+        let root = uf.find(0);
+        if uf.size[root] == pos.len() {
             return pos[*id1][0] * pos[*id2][0];
         }
     }
+
     unreachable!(
         "According to the problem definition, we should awlays returning before the loop ends"
     );
