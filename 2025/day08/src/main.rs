@@ -1,46 +1,23 @@
 fn part1(input: &str, n: usize) -> u64 {
-    let pos = input
-        .lines()
-        .map(|line| {
-            let (x, yz) = line.split_once(',').unwrap();
-            let (y, z) = yz.split_once(',').unwrap();
-            [
-                x.parse::<u64>().unwrap(),
-                y.parse::<u64>().unwrap(),
-                z.parse::<u64>().unwrap(),
-            ]
-        })
-        .collect::<Vec<_>>();
+    let pos = get_pos(input);
+    let id_dist = compute_distances(&pos);
 
-    let mut id_dist = (0..pos.len())
-        .flat_map(|i| {
-            (0..pos.len())
-                .filter(|j| i < *j)
-                .map(|j| (distance(&pos[i], &pos[j], 2), i, j))
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
-
-    id_dist.sort_by(|(d1, _, _), (d2, _, _)| d1.partial_cmp(d2).unwrap());
-    let mut grouped_ids: Vec<Vec<&usize>> = Vec::new();
+    let mut grouped_ids: Vec<Vec<usize>> = Vec::new();
     for (_, id1, id2) in id_dist.iter().take(n) {
         let i1 = grouped_ids.iter().position(|v| v.contains(&id1));
         let i2 = grouped_ids.iter().position(|v| v.contains(&id2));
-        if i1.is_none() && i2.is_none() {
-            grouped_ids.push(vec![id1, id2]);
-        } else if i1.is_some() && i2.is_none() {
-            grouped_ids[i1.unwrap()].push(id2);
-        } else if i1.is_none() && i2.is_some() {
-            grouped_ids[i2.unwrap()].push(id1);
-        } else if i1.is_some() && i2.is_some() {
-            if i1 == i2 {
-                continue;
+
+        match (i1, i2) {
+            (None, None) => grouped_ids.push(vec![*id1, *id2]),
+            (Some(i1), None) => grouped_ids[i1].push(*id2),
+            (None, Some(i2)) => grouped_ids[i2].push(*id1),
+            (Some(i1), Some(i2)) => {
+                if i1 == i2 {
+                    continue; // already connected, nothing to do
+                }
+                let (left, right) = grouped_ids.split_at_mut(i1.max(i2));
+                left[i1.min(i2)].append(&mut right[0]);
             }
-            let (i1, i2) = (i1.unwrap(), i2.unwrap());
-            let (left, right) = grouped_ids.split_at_mut(i1.max(i2));
-            left[i1.min(i2)].append(&mut right[0]);
-        } else {
-            unreachable!();
         }
     }
     let mut lengths = grouped_ids
@@ -52,17 +29,44 @@ fn part1(input: &str, n: usize) -> u64 {
     lengths.iter().rev().take(3).product()
 }
 
-fn distance(pos1: &[u64], pos2: &[u64], norm: u32) -> f64 {
-    let sum: u64 = pos1
-        .iter()
-        .zip(pos2)
-        .map(|(p1, p2)| (p2.max(p1) - p2.min(p1)).pow(norm))
-        .sum();
-    (sum as f64).powf(1. / norm as f64)
+fn part2(input: &str) -> u64 {
+    let pos = get_pos(input);
+    let id_dist = compute_distances(&pos);
+
+    let mut grouped_ids: Vec<Vec<usize>> = Vec::new();
+
+    for (_, id1, id2) in &id_dist {
+        let i1 = grouped_ids.iter().position(|v| v.contains(&id1));
+        let i2 = grouped_ids.iter().position(|v| v.contains(&id2));
+
+        match (i1, i2) {
+            (None, None) => grouped_ids.push(vec![*id1, *id2]),
+            (Some(i1), None) => grouped_ids[i1].push(*id2),
+            (None, Some(i2)) => grouped_ids[i2].push(*id1),
+            (Some(i1), Some(i2)) => {
+                if i1 == i2 {
+                    continue; // already connected, nothing to do
+                }
+                let (left, right) = grouped_ids.split_at_mut(i1.max(i2));
+                left[i1.min(i2)].append(&mut right[0]);
+            }
+        }
+
+        let populated = grouped_ids
+            .iter()
+            .filter(|v| v.len() > 0)
+            .collect::<Vec<_>>();
+        if populated.len() == 1 && populated[0].len() == pos.len() {
+            return pos[*id1][0] * pos[*id2][0];
+        }
+    }
+    unreachable!(
+        "According to the problem definition, we should awlays returning before the loop ends"
+    );
 }
 
-fn part2(input: &str) -> u64 {
-    let pos = input
+fn get_pos(input: &str) -> Vec<[u64; 3]> {
+    input
         .lines()
         .map(|line| {
             let (x, yz) = line.split_once(',').unwrap();
@@ -73,48 +77,28 @@ fn part2(input: &str) -> u64 {
                 z.parse::<u64>().unwrap(),
             ]
         })
-        .collect::<Vec<_>>();
+        .collect::<Vec<_>>()
+}
 
+fn compute_distances(pos: &Vec<[u64; 3]>) -> Vec<(f64, usize, usize)> {
     let mut id_dist = (0..pos.len())
         .flat_map(|i| {
-            (0..pos.len())
-                .filter(|j| i < *j)
+            (i + 1..pos.len())
                 .map(|j| (distance(&pos[i], &pos[j], 2), i, j))
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
+    id_dist.sort_by(|(d1, _, _), (d2, _, _)| d1.total_cmp(d2));
+    id_dist
+}
 
-    id_dist.sort_by(|(d1, _, _), (d2, _, _)| d1.partial_cmp(d2).unwrap());
-    let mut grouped_ids: Vec<Vec<&usize>> = Vec::new();
-    let mut iter = id_dist.iter();
-    loop {
-        let (_, id1, id2) = iter.next().unwrap();
-        let i1 = grouped_ids.iter().position(|v| v.contains(&id1));
-        let i2 = grouped_ids.iter().position(|v| v.contains(&id2));
-        if i1.is_none() && i2.is_none() {
-            grouped_ids.push(vec![id1, id2]);
-        } else if i1.is_some() && i2.is_none() {
-            grouped_ids[i1.unwrap()].push(id2);
-        } else if i1.is_none() && i2.is_some() {
-            grouped_ids[i2.unwrap()].push(id1);
-        } else if i1.is_some() && i2.is_some() {
-            if i1 == i2 {
-                continue;
-            }
-            let (i1, i2) = (i1.unwrap(), i2.unwrap());
-            let (left, right) = grouped_ids.split_at_mut(i1.max(i2));
-            left[i1.min(i2)].append(&mut right[0]);
-        } else {
-            unreachable!();
-        }
-        let populated = grouped_ids
-            .iter()
-            .filter(|v| v.len() > 0)
-            .collect::<Vec<_>>();
-        if populated.len() == 1 && populated[0].len() == pos.len() {
-            break pos[*id1][0] * pos[*id2][0];
-        }
-    }
+fn distance(pos1: &[u64], pos2: &[u64], norm: u32) -> f64 {
+    let sum: u64 = pos1
+        .iter()
+        .zip(pos2)
+        .map(|(p1, p2)| (p2.max(p1) - p2.min(p1)).pow(norm))
+        .sum();
+    (sum as f64).powf(1. / norm as f64)
 }
 
 fn main() {
